@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js"></script>
+    <script>
+      // Your web app's Firebase configuration
+      var firebaseConfig = {
+        apiKey: "AIzaSyCnIBCat2OMMboPjGUbF8WzYeYOnOre648",
+  authDomain: "web-push-9618a.firebaseapp.com",
+  projectId: "web-push-9618a",
+  storageBucket: "web-push-9618a.appspot.com",
+  messagingSenderId: "578906195302",
+  appId: "1:578906195302:web:ce8c7b57f8d9b983c3f4a7"
+      };
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+
+      // Initialize Firebase Cloud Messaging
+      const messaging = firebase.messaging();
+
+      // Request permission and get token
+      messaging.requestPermission()
+        .then(() => {
+          console.log('Notification permission granted.');
+          return messaging.getToken();
+        })
+        .then(token => {
+          console.log('FCM Token:', token);
+          google.script.run.saveFCMToken(token);
+        })
+        .catch(err => {
+          console.error('Unable to get permission to notify.', err);
+        });
+
+      // Handle incoming messages
+      messaging.onMessage(payload => {
+        console.log('Message received. ', payload);
+        const notificationTitle = payload.notification.title;
+        const notificationOptions = {
+          body: payload.notification.body,
+        };
+        new Notification(notificationTitle, notificationOptions);
+      });
+    </script>
+  </head>
+  <body>
+    <h1>Push Notification Setup</h1>
+  </body>
+</html>
