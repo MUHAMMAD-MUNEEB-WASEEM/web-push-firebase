@@ -7,11 +7,11 @@
       // Your web app's Firebase configuration
       var firebaseConfig = {
         apiKey: "AIzaSyCnIBCat2OMMboPjGUbF8WzYeYOnOre648",
-  authDomain: "web-push-9618a.firebaseapp.com",
-  projectId: "web-push-9618a",
-  storageBucket: "web-push-9618a.appspot.com",
-  messagingSenderId: "578906195302",
-  appId: "1:578906195302:web:ce8c7b57f8d9b983c3f4a7"
+  authDomain: "web-push-9618a.firebaseapp.com",
+  projectId: "web-push-9618a",
+  storageBucket: "web-push-9618a.appspot.com",
+  messagingSenderId: "578906195302",
+  appId: "1:578906195302:web:ce8c7b57f8d9b983c3f4a7",
       };
       // Initialize Firebase
       firebase.initializeApp(firebaseConfig);
@@ -19,29 +19,53 @@
       // Initialize Firebase Cloud Messaging
       const messaging = firebase.messaging();
 
-      // Request permission and get token
-      messaging.requestPermission()
-        .then(() => {
-          console.log('Notification permission granted.');
-          return messaging.getToken();
-        })
-        .then(token => {
-          console.log('FCM Token:', token);
-          google.script.run.saveFCMToken(token);
-        })
-        .catch(err => {
-          console.error('Unable to get permission to notify.', err);
-        });
+      // Convert base64 public key to Uint8Array required by the pushManager
+      function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+          .replace(/\-/g, '+')
+          .replace(/_/g, '/');
 
-      // Handle incoming messages
-      messaging.onMessage(payload => {
-        console.log('Message received. ', payload);
-        const notificationTitle = payload.notification.title;
-        const notificationOptions = {
-          body: payload.notification.body,
-        };
-        new Notification(notificationTitle, notificationOptions);
-      });
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+      }
+
+      // Register Service Worker and Request Notification Permission
+      async function registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+          const permission = await Notification.requestPermission();
+
+          if (permission === 'granted') {
+            const applicationServerKey = urlBase64ToUint8Array('BBd1IQh46wzXLSI_iz6So5xsco3SpuBwewFyWx9aN4m523SQ48bI17K00Itc-YoQdb8AvsOtTSKV7PhgKEFxbpg');  // Replace with your public VAPID key
+            const subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: applicationServerKey
+            });
+
+            // Save the token to your backend via Google Apps Script
+            fetch('https://script.google.com/macros/s/AKfycbz26gJQ8tevi9EVtYO3XCwy31uQovugIWiQ3K9xFtDSfFSoFNCOLuwJgqHDSWafyaKZ/exec', {
+              method: 'POST',
+              body: JSON.stringify({ token: subscription.toJSON() }),
+              headers: { 'Content-Type': 'application/json' }
+            });
+          } else {
+            console.error('Permission not granted for Notification');
+          }
+        } else {
+          console.error('Service Worker not supported');
+        }
+      }
+
+      // Initialize on page load
+      window.onload = function() {
+        registerServiceWorker();
+      };
     </script>
   </head>
   <body>
